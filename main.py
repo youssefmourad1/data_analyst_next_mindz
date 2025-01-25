@@ -224,7 +224,7 @@ def generate_plots(df, suggestions):
                     sns.boxplot(data=df, y=numeric_cols[0])
                     st.pyplot(plt)
             elif 'heatmap' in plot_desc:
-                st.write("#### Heatmap")
+                st.write("#### Heatmap")    
                 numeric_df = df.select_dtypes(include=[np.number])
                 if not numeric_df.empty:
                     corr = numeric_df.corr()
@@ -242,14 +242,34 @@ def generate_plots(df, suggestions):
 # Custom LangChain LLM Wrapper for Groq
 class GroqLLM(LLM):
     def __init__(self, groq_client):
+        super().__init__()  # Properly initialize the base LLM class
+
         self.groq_client = groq_client
 
     @property
     def _llm_type(self):
         return "groq"
+    
+    def perform_groq_analysis(self, prompt):
+        if self.groq_client:
+            try:
+                chat_completion = self.groq_client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": "You are a highly skilled senior data analyst assistant."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    model="llama3-8b-8192"
+                )
+                return chat_completion.choices[0].message.content
+            except Exception as e:
+                st.error(f"Groq API call failed: {e}")
+                return "An error occurred while processing your request."
+        else:
+            st.warning("Groq client is not configured.")
+            return "Groq client is not configured."
 
     def _call(self, prompt, stop=None):
-        response = perform_groq_analysis(prompt)
+        response = self.perform_groq_analysis(prompt)
         if response:
             return response
         else:
@@ -257,7 +277,7 @@ class GroqLLM(LLM):
 
     @property
     def _identifying_params(self):
-        return {}
+        return {"model": self._llm_type}
 
 # Define Tool functions
 def execute_sql_query_tool(query):
